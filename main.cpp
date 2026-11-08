@@ -93,9 +93,41 @@ public:
     }
 };
 
-// CARGA DE ARCHIVOS CSV (aun no se q nombre de archivo ponerle xd)
-void cargarCSV(string *NombredeArchivo*, SistemaLogistica& sistema){
+// CARGA DE ARCHIVOS CSV 
+void cargarCSV(string pedidos_masivos_G3, SistemaLogistica& sistema){
+// void cargarCSV(string pedidos_pequenos_G3, SistemaLogistica& sistema){
+    ifstream archivo(pedidos_masivos_G3);
+    // ifstream archivo(pedidos_pequenos_G3);
+    string linea;
 
+    if (!archivo.is_open()) {
+        cout << "Error: No se pudo abrir el archivo " << pedidos_masivos_G3 << endl;
+        // cout << "Error: No se pudo abrir el archivo " << pedidos_pequenos_G3 << endl;
+        return;
+    }
+
+    getline(archivo, linea);
+
+    while (getline(archivo, linea)) {
+        stringstream ss(linea);
+        string id, dni, tipo, prioStr, montoStr, fecha, hora, estado;
+
+        getline(ss, id, ',');
+        getline(ss, dni, ',');
+        getline(ss, tipo, ',');
+        getline(ss, prioStr, ',');
+        getline(ss, montoStr, ',');
+        getline(ss, fecha, ',');
+        getline(ss, hora, ',');
+        getline(ss, estado, ',');
+
+        if (!id.empty()) {
+            sistema.registrarPedido(id, dni, tipo, stoi(prioStr), stod(montoStr), fecha, hora, estado);
+        }
+    }
+    archivo.close();
+    cout << "Carga masiva completada exitosamente desde: " << pedidos_masivos_G3 << endl;
+    // cout << "Carga pequena completada exitosamente desde: " << pedidos_pequenos_G3 << endl;
 }
 
 int main() {
