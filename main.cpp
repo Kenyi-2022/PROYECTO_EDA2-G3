@@ -3,6 +3,7 @@
 #include <vector>
 #include <fstream>
 #include <sstream>
+#include <iomanip>
 
 using namespace std;
 
@@ -130,83 +131,23 @@ private:
         int balance = obtenerBalance(nodo);
 
         // Caso LL
-        if (balance > 1 &&
-            pedidoNuevo->fecha < nodo->izq->pedido->fecha) {
-            return rotarDerecha(nodo);
-        }
-
-        if (balance > 1 &&
-            pedidoNuevo->fecha == nodo->izq->pedido->fecha &&
-            pedidoNuevo->hora < nodo->izq->pedido->hora) {
-            return rotarDerecha(nodo);
-        }
-
-        if (balance > 1 &&
-            pedidoNuevo->fecha == nodo->izq->pedido->fecha &&
-            pedidoNuevo->hora == nodo->izq->pedido->hora &&
-            pedidoNuevo->idPedido < nodo->izq->pedido->idPedido) {
+        if (balance > 1 && obtenerBalance(nodo->izq) >= 0) {
             return rotarDerecha(nodo);
         }
 
         // Caso RR
-        if (balance < -1 &&
-            pedidoNuevo->fecha > nodo->der->pedido->fecha) {
-            return rotarIzquierda(nodo);
-        }
-
-        if (balance < -1 &&
-            pedidoNuevo->fecha == nodo->der->pedido->fecha &&
-            pedidoNuevo->hora > nodo->der->pedido->hora) {
-            return rotarIzquierda(nodo);
-        }
-
-        if (balance < -1 &&
-            pedidoNuevo->fecha == nodo->der->pedido->fecha &&
-            pedidoNuevo->hora == nodo->der->pedido->hora &&
-            pedidoNuevo->idPedido > nodo->der->pedido->idPedido) {
+        if (balance < -1 && obtenerBalance(nodo->der) <= 0) {
             return rotarIzquierda(nodo);
         }
 
         // Caso LR
-        if (balance > 1 &&
-            pedidoNuevo->fecha > nodo->izq->pedido->fecha) {
-            nodo->izq = rotarIzquierda(nodo->izq);
-            return rotarDerecha(nodo);
-        }
-
-        if (balance > 1 &&
-            pedidoNuevo->fecha == nodo->izq->pedido->fecha &&
-            pedidoNuevo->hora > nodo->izq->pedido->hora) {
-            nodo->izq = rotarIzquierda(nodo->izq);
-            return rotarDerecha(nodo);
-        }
-
-        if (balance > 1 &&
-            pedidoNuevo->fecha == nodo->izq->pedido->fecha &&
-            pedidoNuevo->hora == nodo->izq->pedido->hora &&
-            pedidoNuevo->idPedido > nodo->izq->pedido->idPedido) {
+        if (balance > 1 && obtenerBalance(nodo->izq) < 0) {
             nodo->izq = rotarIzquierda(nodo->izq);
             return rotarDerecha(nodo);
         }
 
         // Caso RL
-        if (balance < -1 &&
-            pedidoNuevo->fecha < nodo->der->pedido->fecha) {
-            nodo->der = rotarDerecha(nodo->der);
-            return rotarIzquierda(nodo);
-        }
-
-        if (balance < -1 &&
-            pedidoNuevo->fecha == nodo->der->pedido->fecha &&
-            pedidoNuevo->hora < nodo->der->pedido->hora) {
-            nodo->der = rotarDerecha(nodo->der);
-            return rotarIzquierda(nodo);
-        }
-
-        if (balance < -1 &&
-            pedidoNuevo->fecha == nodo->der->pedido->fecha &&
-            pedidoNuevo->hora == nodo->der->pedido->hora &&
-            pedidoNuevo->idPedido < nodo->der->pedido->idPedido) {
+        if (balance < -1 && obtenerBalance(nodo->der) > 0) {
             nodo->der = rotarDerecha(nodo->der);
             return rotarIzquierda(nodo);
         }
@@ -214,11 +155,111 @@ private:
         return nodo;
     }
 
+    void vaciarArbol(NodoAVL* nodo) {
+        if (nodo == nullptr) {
+            return;
+        }
+
+        vaciarArbol(nodo->izq);
+        vaciarArbol(nodo->der);
+
+        delete nodo->pedido;
+        delete nodo;
+    }
+
+    void inOrderLimitado(NodoAVL* nodo, int& contador) {
+    if (nodo == nullptr || contador >= 30) {
+        return;
+    }
+
+    inOrderLimitado(nodo->izq, contador);
+
+    if (contador >= 30) {
+        return;
+    }
+
+        cout << left
+            << setw(18) << nodo->pedido->idPedido
+            << setw(14) << nodo->pedido->fecha
+            << setw(10) << nodo->pedido->hora
+            << setw(15) << nodo->pedido->estado
+            << endl;
+
+    contador++;
+
+    if (contador >= 30) {
+        return;
+    }
+
+    inOrderLimitado(nodo->der, contador);
+}
+
 public:
     ArbolAVL() : raiz(nullptr) {}
 
+    ~ArbolAVL() {
+        vaciarArbol(raiz);
+    }
+
     void insertar(Pedido* pedidoNuevo) {
         raiz = insertarAVL(raiz, pedidoNuevo);
+    }
+    
+    void imprimirPrimeros30() {
+    int contador = 0;
+
+    cout << "\n--- Primeros 30 pedidos ordenados ---\n";
+
+    inOrderLimitado(raiz, contador);
+    }
+
+
+private:
+    void consultarPorRangoAVL(NodoAVL* nodo,
+                              string fechaInicio,
+                              string fechaFin,
+                              int& cantidad,
+                              double& montoTotal) {
+        if (nodo == nullptr) {
+            return;
+        }
+
+        if (nodo->pedido->fecha > fechaFin) {
+            consultarPorRangoAVL(
+                nodo->izq, fechaInicio, fechaFin, cantidad, montoTotal
+            );
+        }
+        else if (nodo->pedido->fecha < fechaInicio) {
+            consultarPorRangoAVL(
+                nodo->der, fechaInicio, fechaFin, cantidad, montoTotal
+            );
+        }
+        else {
+            cantidad++;
+            montoTotal += nodo->pedido->montoDolares;
+
+            consultarPorRangoAVL(
+                nodo->izq, fechaInicio, fechaFin, cantidad, montoTotal
+            );
+
+            consultarPorRangoAVL(
+                nodo->der, fechaInicio, fechaFin, cantidad, montoTotal
+            );
+        }
+    }
+
+public:
+    void consultarPorRango(string fechaInicio, string fechaFin) {
+        int cantidad = 0;
+        double montoTotal = 0.0;
+
+        consultarPorRangoAVL(
+            raiz, fechaInicio, fechaFin, cantidad, montoTotal
+        );
+
+        cout << "\n--- Auditoria por rango de fechas ---\n";
+        cout << "Cantidad de pedidos: " << cantidad << endl;
+        cout << "Monto total: $" << montoTotal << endl;
     }
 };
 class SistemaLogistica {
@@ -260,6 +301,13 @@ public:
 
         // delete Heap;
     }
+
+void consultarRango(string fechaInicio, string fechaFin) {
+    DArbol->consultarPorRango(fechaInicio, fechaFin);
+}
+void mostrarPedidosOrdenados() {
+    DArbol->imprimirPrimeros30();
+}
 };
 
 // CARGA DE ARCHIVOS CSV 
@@ -300,9 +348,77 @@ void cargarCSV(string pedidos_masivos_G3, SistemaLogistica& sistema){
 }
 
 int main() {
-    SistemaLogistica sistema(15000); // MINIMO DE PEDIDOS PARA LA PRUEBA: 10000 (los 15000 son de referencia nomas)
+    SistemaLogistica sistema(15000);
 
-    cargarCSV("pedidos_masivos_G3.csv", sistema);
+    string archivoCSV;
+    int opcionCSV;
+
+    cout << "\n========== SELECCION DE ARCHIVO CSV ==========" << endl;
+    cout << "1. Pedidos Masivos" << endl;
+    cout << "2. Pedidos Pequenos" << endl;
+    cout << "Seleccione el archivo que desea cargar: ";
+    cin >> opcionCSV;
+
+    if (opcionCSV == 1) {
+        archivoCSV = "PedidosCSV/pedidos_masivos_G3.csv";
+    }
+    else if (opcionCSV == 2) {
+        archivoCSV = "PedidosCSV/pedidos_pequenos_G3.csv";
+    }
+    else {
+        cout << "Opcion invalida. Se cargaran los pedidos masivos." << endl;
+        archivoCSV = "PedidosCSV/pedidos_masivos_G3.csv";
+    }
+
+    cargarCSV(archivoCSV, sistema);
+
+    int opcion;
+
+    while (true) {
+        cout << "\n========== MENU PRINCIPAL ==========\n";
+        cout << "1. Busqueda por ID (Hash - Pendiente Integrante 1)\n";
+        cout << "2. Despacho de Pedidos Urgentes (Heap - Pendiente Integrante 2)\n";
+        cout << "3. Consulta ordenada por fecha y hora (In-Order AVL)\n";
+        cout << "4. Consulta por rango de fechas (Arbol AVL)\n";
+        cout << "5. Salir\n";
+        cout << "Seleccione una opcion: ";
+        cin >> opcion;
+
+        switch (opcion) {
+        case 1:
+            cout << "Busqueda por ID pendiente de implementacion.\n";
+            break;
+
+        case 2:
+            cout << "Despacho de pedidos urgentes pendiente de implementacion.\n";
+            break;
+
+        case 3:
+            sistema.mostrarPedidosOrdenados();
+            break;
+
+        case 4: {
+            string fechaInicio;
+            string fechaFin;
+
+            cout << "Ingrese la fecha inicial: ";
+            cin >> fechaInicio;
+
+            cout << "Ingrese la fecha final: ";
+            cin >> fechaFin;
+
+            sistema.consultarRango(fechaInicio, fechaFin);
+            break;
+        }
+
+        case 5:
+            cout << "Saliendo del programa...\n";
+            return 0;
+
+        default:
+            cout << "Opcion invalida.\n";
+        }
+    }
 
     return 0;
 }
