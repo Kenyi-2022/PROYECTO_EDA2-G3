@@ -214,7 +214,8 @@ void cargarCSV(string pedidos_masivos_G3, SistemaLogistica& sistema){
 
 int main() {
     SistemaLogistica sistema(15000); // MINIMO DE PEDIDOS PARA LA PRUEBA: 10000 (los 15000 son de referencia nomas)
-    cargarCSV("pedidos_pequenos.csv", sistema);
+    cargarCSV("pedidos_masivos_G3.csv", sistema);
+    // cargarCSV("pedidos_pequenos_G3.csv", sistema);
 
     return 0;
 }
