@@ -37,7 +37,83 @@ struct NodoAVL {
 
 //--------------------------------------INTEGRANTE 1---------------------------------------------------
 class TablaHash{
+private:
+    NodoHash** tabla;
+    int numBuckets;
+    int cantidadElementos;
 
+    int funcionHash(string llave) {
+        int suma = 0;
+        for (char c : llave) {
+            suma += c; 
+        }
+        return suma % numBuckets; 
+    }
+
+public:
+    TablaHash(int tamano) {
+        numBuckets = tamano;
+        cantidadElementos = 0;
+        tabla = new NodoHash*[numBuckets];
+        for(int i = 0; i < numBuckets; i++) {
+            tabla[i] = nullptr;
+        }
+    }
+
+    void insertarHash(Pedido* nuevoPedido) {
+        int indice = funcionHash(nuevoPedido->idPedido);
+        NodoHash* nuevoNodo = new NodoHash(nuevoPedido);
+        nuevoNodo->siguiente = tabla[indice];
+        tabla[indice] = nuevoNodo;
+        cantidadElementos++;
+    }
+
+    Pedido* buscarHash(string idBuscado) {
+        int indice = funcionHash(idBuscado);
+        NodoHash* actual = tabla[indice];
+        
+        while (actual != nullptr) {
+            if (actual->pedido->idPedido == idBuscado) {
+                return actual->pedido;
+            }
+            actual = actual->siguiente;
+        }
+        return nullptr;
+    }
+
+    bool eliminarHash(string idEliminar) {
+        int indice = funcionHash(idEliminar);
+        NodoHash* actual = tabla[indice];
+        NodoHash* anterior = nullptr;
+
+        while (actual != nullptr) {
+            if (actual->pedido->idPedido == idEliminar) {
+                if (anterior == nullptr) {
+                    tabla[indice] = actual->siguiente;
+                } else {
+                    anterior->siguiente = actual->siguiente; 
+                }
+                delete actual; 
+                cantidadElementos--;
+                return true;
+            }
+            anterior = actual;
+            actual = actual->siguiente;
+        }
+        return false;
+    }
+
+    ~TablaHash() {
+        for(int i = 0; i < numBuckets; i++) {
+            NodoHash* actual = tabla[i];
+            while(actual != nullptr) {
+                NodoHash* temp = actual;
+                actual = actual->siguiente;
+                delete temp;
+            }
+        }
+        delete[] tabla;
+    }
 };
 
 //--------------------------------------INTEGRANTE 2--------------------------------------------------
@@ -70,16 +146,22 @@ public:
     }
 
     void registrarPedido(string id, string dni, string tipo, int prio, double monto, string f, string h, string est) {
+        if(KHash->buscarHash(id) != nullptr){
+            return;
+        }
+
         Pedido* nuevoPedido = new Pedido(id, dni, tipo, prio, monto, f, h, est);
 
-        
         KHash->insertarHash(nuevoPedido);
         
         // *INICIAL DEL INTEGRANTE*Arbol->insertarAVL(raizAVL, nuevoPedido); 
 
         // *INICIAL DEL INTEGRANTE*Heap->insertarHeap(nuevoPedido); 
     }
-    
+
+    Pedido* buscarPedidoPorID(string id){
+        return KHash->buscarHash(id);
+    }
     
     // DESTRUCTOR
     ~SistemaLogistica() {
@@ -132,5 +214,8 @@ void cargarCSV(string pedidos_masivos_G3, SistemaLogistica& sistema){
 
 int main() {
     SistemaLogistica sistema(15000); // MINIMO DE PEDIDOS PARA LA PRUEBA: 10000 (los 15000 son de referencia nomas)
+    cargarCSV("pedidos_masivos_G3.csv", sistema);
+    // cargarCSV("pedidos_pequenos_G3.csv", sistema);
+
     return 0;
 }
