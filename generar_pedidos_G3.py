@@ -8,8 +8,8 @@ with open('pedidos_masivos_G3.csv', mode='w', newline='') as file:
 # with open('pedidos_pequenos_G3.csv', mode='w', newline='') as file:
     writer = csv.writer(file)
     writer.writerow(["idPedido", "dniCliente", "tipoEnvio", "nivelPrioridad", "montoDolares", "fecha", "hora", "estado"])
-    # for i in range(1, 15001):
-    for i in range(1, 31):
+    for i in range(1, 15001):
+    # for i in range(1, 31):
         id_pedido = f"PD-{str(i).zfill(6)}"
         dni = str(random.randint(10000000, 99999999))
         tipo = random.choice(tipos_envio)

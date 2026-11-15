@@ -3,6 +3,7 @@
 #include <vector>
 #include <fstream>
 #include <sstream>
+#include <chrono>
 
 using namespace std;
 
@@ -103,6 +104,37 @@ public:
         return false;
     }
 
+    void liberarPedidos() {
+        for (int i = 0; i < numBuckets; i++) {
+            NodoHash* actual = tabla[i];
+            while (actual != nullptr) {
+                delete actual->pedido;
+                actual->pedido = nullptr;
+                actual = actual->siguiente;
+            }
+        }
+    }
+
+    void mostrarEstadisticas() {
+        int bucketsUsados = 0;
+        int colisiones = 0;
+        for (int i = 0; i < numBuckets; i++) {
+            if (tabla[i] != nullptr) {
+                bucketsUsados++;
+                int count = 0;
+                NodoHash* aux = tabla[i];
+                while (aux != nullptr) {
+                    count++;
+                    aux = aux->siguiente;
+                }
+                if (count > 1) colisiones += (count - 1);
+            }
+        }
+        cout << "Total elementos en Hash: " << cantidadElementos << endl;
+        cout << "Buckets utilizados: " << bucketsUsados << " / " << numBuckets << endl;
+        cout << "Colisiones resueltas por encadenamiento: " << colisiones << endl;
+    }
+
     ~TablaHash() {
         for(int i = 0; i < numBuckets; i++) {
             NodoHash* actual = tabla[i];
@@ -162,9 +194,35 @@ public:
     Pedido* buscarPedidoPorID(string id){
         return KHash->buscarHash(id);
     }
+
+    bool actualizarEstadoPedido(string id, string nuevoEstado) {
+        Pedido* p = KHash->buscarHash(id);
+        if (p != nullptr) {
+            p->estado = nuevoEstado;
+            return true;
+        }
+        return false;
+    }
+
+    bool eliminarPedido(string id) {
+        Pedido* p = KHash->buscarHash(id);
+        if (p == nullptr) return false;
+
+        KHash->eliminarHash(id);
+        // *INICIAL DEL INTEGRANTE*Arbol->eliminarAVL(id);
+        // *INICIAL DEL INTEGRANTE*Heap->cancelarPedido(id);
+
+        delete p;
+        return true;
+    }
+
+    void verMetricasHash() {
+        KHash->mostrarEstadisticas();
+    }
     
     // DESTRUCTOR
     ~SistemaLogistica() {
+        KHash->liberarPedidos();
         delete KHash;
 
         // delete *INICIAL DEL INTEGRANTE*Arbol;
@@ -176,15 +234,12 @@ public:
 };
 
 // CARGA DE ARCHIVOS CSV 
-void cargarCSV(string pedidos_masivos_G3, SistemaLogistica& sistema){
-// void cargarCSV(string pedidos_pequenos_G3, SistemaLogistica& sistema){
-    ifstream archivo(pedidos_masivos_G3);
-    // ifstream archivo(pedidos_pequenos_G3);
+void cargarCSV(string nombreArchivo, SistemaLogistica& sistema){
+    ifstream archivo(nombreArchivo);
     string linea;
 
     if (!archivo.is_open()) {
-        cout << "Error: No se pudo abrir el archivo " << pedidos_masivos_G3 << endl;
-        // cout << "Error: No se pudo abrir el archivo " << pedidos_pequenos_G3 << endl;
+        cout << "Error: No se pudo abrir el archivo " << nombreArchivo << endl;
         return;
     }
 
@@ -208,14 +263,13 @@ void cargarCSV(string pedidos_masivos_G3, SistemaLogistica& sistema){
         }
     }
     archivo.close();
-    cout << "Carga masiva completada exitosamente desde: " << pedidos_masivos_G3 << endl;
-    // cout << "Carga pequena completada exitosamente desde: " << pedidos_pequenos_G3 << endl;
+    cout << "Carga masiva completada exitosamente desde: " << nombreArchivo << endl;
 }
 
 int main() {
     SistemaLogistica sistema(15000); // MINIMO DE PEDIDOS PARA LA PRUEBA: 10000 (los 15000 son de referencia nomas)
     cargarCSV("pedidos_masivos_G3.csv", sistema);
     // cargarCSV("pedidos_pequenos_G3.csv", sistema);
-
+    
     return 0;
 }
