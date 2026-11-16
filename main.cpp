@@ -151,7 +151,130 @@ public:
 
 
 //--------------------------------------INTEGRANTE 3---------------------------------------------------
-class MinHeap{
+class MinHeap {
+private:
+    Pedido** arreglo;
+    int capacidad;
+    int tamanio;
+
+    void redimensionar() {
+        capacidad *= 2;
+        Pedido** nuevoArreglo = new Pedido*[capacidad];
+
+        for (int i = 0; i < tamanio; i++) {
+            nuevoArreglo[i] = arreglo[i];
+        }
+
+        delete[] arreglo;
+        arreglo = nuevoArreglo;
+    }
+
+    void flotar(int indice) {
+        while (indice > 0) {
+            int padre = (indice - 1) / 2;
+
+            if (arreglo[indice]->nivelPrioridad <
+                arreglo[padre]->nivelPrioridad) {
+                Pedido* temporal = arreglo[indice];
+                arreglo[indice] = arreglo[padre];
+                arreglo[padre] = temporal;
+                indice = padre;
+            }
+            else {
+                break;
+            }
+        }
+    }
+
+    void hundir(int indice) {
+        int menor = indice;
+        int izquierda = 2 * indice + 1;
+        int derecha = 2 * indice + 2;
+
+        if (izquierda < tamanio &&
+            arreglo[izquierda]->nivelPrioridad <
+            arreglo[menor]->nivelPrioridad) {
+            menor = izquierda;
+        }
+
+        if (derecha < tamanio &&
+            arreglo[derecha]->nivelPrioridad <
+            arreglo[menor]->nivelPrioridad) {
+            menor = derecha;
+        }
+
+        if (menor != indice) {
+            Pedido* temporal = arreglo[indice];
+            arreglo[indice] = arreglo[menor];
+            arreglo[menor] = temporal;
+            hundir(menor);
+        }
+    }
+
+public:
+    MinHeap(int capacidadInicial = 15000)
+        : capacidad(capacidadInicial), tamanio(0) {
+        arreglo = new Pedido*[capacidad];
+    }
+
+    ~MinHeap() {
+        delete[] arreglo;
+    }
+
+    void insertarHeap(Pedido* pedido) {
+        if (tamanio >= capacidad) {
+            redimensionar();
+        }
+
+        arreglo[tamanio] = pedido;
+        flotar(tamanio);
+        tamanio++;
+    }
+
+    bool extraerMin(Pedido*& resultado) {
+        if (tamanio == 0) {
+            return false;
+        }
+
+        resultado = arreglo[0];
+        tamanio--;
+
+        if (tamanio > 0) {
+            arreglo[0] = arreglo[tamanio];
+            hundir(0);
+        }
+
+        return true;
+    }
+
+    bool eliminarPorId(string idPedido) {
+        for (int i = 0; i < tamanio; i++) {
+            if (arreglo[i]->idPedido == idPedido) {
+                tamanio--;
+
+                if (i < tamanio) {
+                    arreglo[i] = arreglo[tamanio];
+
+                    if (i > 0 &&
+                        arreglo[i]->nivelPrioridad <
+                        arreglo[(i - 1) / 2]->nivelPrioridad) {
+                        flotar(i);
+                    }
+                    else {
+                        hundir(i);
+                    }
+                }
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    int obtenerTamanio() const {
+        return tamanio;
+    }
 
 };
 
@@ -454,7 +577,7 @@ private:
     TablaHash* KHash;
 
     // -----------INTEGRANTE 2---------------
-    // MinHeap* Heap;
+    MinHeap* Heap;
 
     // -----------INTEGRANTE 3---------------
     ArbolAVL* DArbol;
@@ -465,7 +588,7 @@ public:
 
         DArbol = new ArbolAVL();
 
-        // Heap = new MinHeap();
+        Heap = new MinHeap(capHash);
     }
 
     void registrarPedido(string id, string dni, string tipo, int prio,
@@ -482,7 +605,7 @@ public:
 
         DArbol->insertar(nuevoPedido);
 
-        // Heap->insertarHeap(nuevoPedido);
+        Heap->insertarHeap(nuevoPedido);
     }
 
     Pedido* buscarPedidoPorID(string id){
@@ -503,8 +626,29 @@ public:
         if (p == nullptr) return false;
 
         KHash->eliminarHash(id);
+        Heap->eliminarPorId(id);
         DArbol->eliminar(p->fecha, p->hora, p->idPedido);
         return true;
+    }
+
+    void despacharUrgentesHeap(int cantidad) {
+        cout << "\n--- DESPACHO DE PEDIDOS URGENTES ---\n";
+
+        Pedido* despachado = nullptr;
+
+        for (int i = 0; i < cantidad; i++) {
+            if (!Heap->extraerMin(despachado)) {
+                cout << "No hay mas pedidos pendientes en el Heap.\n";
+                break;
+            }
+
+            despachado->estado = "EnTransito";
+
+            cout << "Despachando -> ID: " << despachado->idPedido
+                 << " | Prioridad: " << despachado->nivelPrioridad
+                 << " | Estado: " << despachado->estado
+                 << endl;
+        }
     }
 
     void verMetricasHash() {
@@ -512,10 +656,9 @@ public:
     }
     
     ~SistemaLogistica() {
+        delete Heap;
         delete DArbol;
         delete KHash;
-
-        // delete Heap;
     }
 
 void consultarRango(string fechaInicio, string fechaFin) {
@@ -596,7 +739,7 @@ int main() {
     while (true) {
         cout << "\n========== MENU PRINCIPAL ==========\n";
         cout << "1. Busqueda por ID (Hash)\n";
-        cout << "2. Despacho de Pedidos Urgentes (Heap - Pendiente Integrante 2)\n";
+        cout << "2. Despacho de Pedidos Urgentes (MinHeap)\n";
         cout << "3. Consulta ordenada por fecha y hora (In-Order AVL)\n";
         cout << "4. Consulta por rango de fechas (Arbol AVL)\n";
         cout << "5. Ver metricas del Hash\n";
@@ -626,7 +769,7 @@ int main() {
         }
 
         case 2:
-            cout << "Despacho de pedidos urgentes pendiente de implementacion.\n";
+            sistema.despacharUrgentesHeap(100);
             break;
 
         case 3:
