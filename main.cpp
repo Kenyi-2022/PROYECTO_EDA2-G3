@@ -613,7 +613,7 @@ int main() {
 
             Pedido* pedido = sistema.buscarPedidoPorID(id);
             if (pedido == nullptr) {
-                cout << "Pedido no encontrado.\n";
+                cout << "Busqueda ID inexistente ('PD-888888').\n";
             }
             else {
                 cout << "ID: " << pedido->idPedido
