@@ -575,6 +575,8 @@ public:
 class SistemaLogistica {
 private:
     TablaHash* KHash;
+    int totalPedidosGlobal;
+    double montoTotalGlobal;
 
     // -----------INTEGRANTE 2---------------
     MinHeap* Heap;
@@ -583,7 +585,10 @@ private:
     ArbolAVL* DArbol;
 
 public:
-    SistemaLogistica(int capHash) {
+    SistemaLogistica(int capHash)
+        : KHash(nullptr),
+          totalPedidosGlobal(0),
+          montoTotalGlobal(0.0) {
         KHash = new TablaHash(capHash);
 
         DArbol = new ArbolAVL();
@@ -591,10 +596,10 @@ public:
         Heap = new MinHeap(capHash);
     }
 
-    void registrarPedido(string id, string dni, string tipo, int prio,
+    bool registrarPedido(string id, string dni, string tipo, int prio,
                          double monto, string f, string h, string est) {
         if (KHash->buscarHash(id) != nullptr) {
-            return;
+            return false;
         }
 
         Pedido* nuevoPedido = new Pedido(
@@ -606,6 +611,11 @@ public:
         DArbol->insertar(nuevoPedido);
 
         Heap->insertarHeap(nuevoPedido);
+
+        totalPedidosGlobal++;
+        montoTotalGlobal += monto;
+
+        return true;
     }
 
     Pedido* buscarPedidoPorID(string id){
@@ -627,6 +637,8 @@ public:
 
         KHash->eliminarHash(id);
         Heap->eliminarPorId(id);
+        totalPedidosGlobal--;
+        montoTotalGlobal -= p->montoDolares;
         DArbol->eliminar(p->fecha, p->hora, p->idPedido);
         return true;
     }
@@ -654,6 +666,16 @@ public:
     void verMetricasHash() {
         KHash->mostrarEstadisticas();
     }
+
+        void mostrarEstadisticasO1() {
+           cout << "\n--- ESTADISTICAS GENERALES O(1) ---\n";
+           cout << "Total de pedidos globales: "
+               << totalPedidosGlobal << endl;
+           cout << "Pedidos pendientes por despachar: "
+               << Heap->obtenerTamanio() << endl;
+           cout << "Monto total acumulado: $"
+               << montoTotalGlobal << endl;
+        }
     
     ~SistemaLogistica() {
         delete Heap;
@@ -713,6 +735,7 @@ int main() {
     cout << "2. Pedidos Pequenos" << endl;
     cout << "Seleccione el archivo que desea cargar: ";
     cin >> opcionCSV;
+    cin.ignore(10000, '\n');
 
     if (opcionCSV == 1) {
         archivoCSV = "PedidosCSV/pedidos_masivos_G3.csv";
@@ -742,21 +765,33 @@ int main() {
         cout << "2. Despacho de Pedidos Urgentes (MinHeap)\n";
         cout << "3. Consulta ordenada por fecha y hora (In-Order AVL)\n";
         cout << "4. Consulta por rango de fechas (Arbol AVL)\n";
-        cout << "5. Ver metricas del Hash\n";
-        cout << "6. Salir\n";
+        cout << "5. Registro manual de nuevo pedido\n";
+        cout << "6. Actualizacion de estado\n";
+        cout << "7. Eliminacion de pedido (Cancelacion)\n";
+        cout << "8. Estadisticas Generales O(1)\n";
+        cout << "9. Salir\n";
         cout << "Seleccione una opcion: ";
-        cin >> opcion;
+        if (!(cin >> opcion)) {
+            cin.clear();
+            cin.ignore(10000, '\n');
+            cout << "Opcion invalida.\n";
+            continue;
+        }
+        cin.ignore(10000, '\n');
 
         switch (opcion) {
         case 1:
         {
             string id;
             cout << "Ingrese el ID del pedido: ";
-            cin >> id;
+            getline(cin, id);
 
+            auto inicio = chrono::high_resolution_clock::now();
             Pedido* pedido = sistema.buscarPedidoPorID(id);
+            auto fin = chrono::high_resolution_clock::now();
+
             if (pedido == nullptr) {
-                cout << "Busqueda ID inexistente ('PD-888888').\n";
+                cout << "Pedido no encontrado.\n";
             }
             else {
                 cout << "ID: " << pedido->idPedido
@@ -765,36 +800,189 @@ int main() {
                      << " | Estado: " << pedido->estado
                      << endl;
             }
+
+            double msBusqueda = chrono::duration<double, milli>(
+                fin - inicio
+            ).count();
+            cout << fixed << setprecision(4)
+                 << "Tiempo de ejecucion: " << msBusqueda << " ms\n";
             break;
         }
 
-        case 2:
-            sistema.despacharUrgentesHeap(100);
-            break;
+        case 2: {
+            int cantidad;
+            cout << "Cuantos pedidos desea despachar: ";
 
-        case 3:
-            sistema.mostrarPedidosOrdenados();
+            if (!(cin >> cantidad)) {
+                cin.clear();
+                cin.ignore(10000, '\n');
+                cout << "Cantidad invalida.\n";
+                break;
+            }
+
+            cin.ignore(10000, '\n');
+
+            auto inicio = chrono::high_resolution_clock::now();
+            sistema.despacharUrgentesHeap(cantidad);
+            auto fin = chrono::high_resolution_clock::now();
+
+            double msDespacho = chrono::duration<double, milli>(
+                fin - inicio
+            ).count();
+            cout << fixed << setprecision(4)
+                 << "Tiempo de ejecucion: " << msDespacho << " ms\n";
             break;
+        }
+
+        case 3: {
+            auto inicio = chrono::high_resolution_clock::now();
+            sistema.mostrarPedidosOrdenados();
+            auto fin = chrono::high_resolution_clock::now();
+
+            double msInOrder = chrono::duration<double, milli>(
+                fin - inicio
+            ).count();
+            cout << fixed << setprecision(4)
+                 << "Tiempo de ejecucion: " << msInOrder << " ms\n";
+            break;
+        }
 
         case 4: {
             string fechaInicio;
             string fechaFin;
 
             cout << "Ingrese la fecha inicial: ";
-            cin >> fechaInicio;
+            getline(cin, fechaInicio);
 
             cout << "Ingrese la fecha final: ";
-            cin >> fechaFin;
+            getline(cin, fechaFin);
 
+            auto inicio = chrono::high_resolution_clock::now();
             sistema.consultarRango(fechaInicio, fechaFin);
+            auto fin = chrono::high_resolution_clock::now();
+
+            double msRango = chrono::duration<double, milli>(
+                fin - inicio
+            ).count();
+            cout << fixed << setprecision(4)
+                 << "Tiempo de ejecucion: " << msRango << " ms\n";
             break;
         }
 
-        case 5:
-            sistema.verMetricasHash();
+        case 5: {
+            string id;
+            string dni;
+            string tipo;
+            string fecha;
+            string hora;
+            string estado;
+            int prioridad;
+            double monto;
+
+            cout << "ID: ";
+            getline(cin, id);
+            cout << "DNI: ";
+            getline(cin, dni);
+            cout << "Tipo de envio: ";
+            getline(cin, tipo);
+            cout << "Nivel de prioridad: ";
+
+            if (!(cin >> prioridad)) {
+                cin.clear();
+                cin.ignore(10000, '\n');
+                cout << "Prioridad invalida.\n";
+                break;
+            }
+
+            cout << "Monto en dolares: ";
+            if (!(cin >> monto)) {
+                cin.clear();
+                cin.ignore(10000, '\n');
+                cout << "Monto invalido.\n";
+                break;
+            }
+
+            cin.ignore(10000, '\n');
+            cout << "Fecha: ";
+            getline(cin, fecha);
+            cout << "Hora: ";
+            getline(cin, hora);
+            cout << "Estado: ";
+            getline(cin, estado);
+
+            auto inicio = chrono::high_resolution_clock::now();
+            if (sistema.registrarPedido(
+                id, dni, tipo, prioridad, monto, fecha, hora, estado
+            )) {
+                cout << "Pedido registrado correctamente.\n";
+            }
+            else {
+                cout << "No se registro: el ID ya existe.\n";
+            }
+
+            auto fin = chrono::high_resolution_clock::now();
+            double msInsercion = chrono::duration<double, milli>(
+                fin - inicio
+            ).count();
+            cout << fixed << setprecision(4)
+                 << "Tiempo de ejecucion: " << msInsercion << " ms\n";
+            break;
+        }
+
+        case 6: {
+            string id;
+            string nuevoEstado;
+
+            cout << "Ingrese el ID del pedido: ";
+            getline(cin, id);
+            cout << "Ingrese el nuevo estado: ";
+            getline(cin, nuevoEstado);
+
+            auto inicio = chrono::high_resolution_clock::now();
+            if (sistema.actualizarEstadoPedido(id, nuevoEstado)) {
+                cout << "Estado actualizado correctamente.\n";
+            }
+            else {
+                cout << "Pedido no encontrado.\n";
+            }
+
+            auto fin = chrono::high_resolution_clock::now();
+            double msActualizacion = chrono::duration<double, milli>(
+                fin - inicio
+            ).count();
+            cout << fixed << setprecision(4)
+                 << "Tiempo de ejecucion: " << msActualizacion << " ms\n";
+            break;
+        }
+
+        case 7: {
+            string id;
+
+            cout << "Ingrese el ID del pedido a cancelar: ";
+            getline(cin, id);
+
+            auto inicio = chrono::high_resolution_clock::now();
+            if (sistema.eliminarPedido(id)) {
+                cout << "Pedido eliminado correctamente.\n";
+            }
+            else {
+                cout << "Pedido no encontrado.\n";
+            }
+
+            auto fin = chrono::high_resolution_clock::now();
+            double msEliminacion = chrono::duration<double, milli>(
+                fin - inicio
+            ).count();
+            cout << fixed << setprecision(4)
+                 << "Tiempo de ejecucion: " << msEliminacion << " ms\n";
+            break;
+        }
+
+        case 8:
+            sistema.mostrarEstadisticasO1();
             break;
 
-        case 6:
+        case 9:
             cout << "Saliendo del programa...\n";
             return 0;
 
