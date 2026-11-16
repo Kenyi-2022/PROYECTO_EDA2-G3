@@ -4,6 +4,7 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <chrono>
 
 using namespace std;
 
@@ -38,7 +39,114 @@ struct NodoAVL {
 
 //--------------------------------------INTEGRANTE 1---------------------------------------------------
 class TablaHash{
+private:
+    NodoHash** tabla;
+    int numBuckets;
+    int cantidadElementos;
 
+    int funcionHash(string llave) {
+        int suma = 0;
+        for (char c : llave) {
+            suma += c; 
+        }
+        return suma % numBuckets; 
+    }
+
+public:
+    TablaHash(int tamano) {
+        numBuckets = tamano;
+        cantidadElementos = 0;
+        tabla = new NodoHash*[numBuckets];
+        for(int i = 0; i < numBuckets; i++) {
+            tabla[i] = nullptr;
+        }
+    }
+
+    void insertarHash(Pedido* nuevoPedido) {
+        int indice = funcionHash(nuevoPedido->idPedido);
+        NodoHash* nuevoNodo = new NodoHash(nuevoPedido);
+        nuevoNodo->siguiente = tabla[indice];
+        tabla[indice] = nuevoNodo;
+        cantidadElementos++;
+    }
+
+    Pedido* buscarHash(string idBuscado) {
+        int indice = funcionHash(idBuscado);
+        NodoHash* actual = tabla[indice];
+        
+        while (actual != nullptr) {
+            if (actual->pedido->idPedido == idBuscado) {
+                return actual->pedido;
+            }
+            actual = actual->siguiente;
+        }
+        return nullptr;
+    }
+
+    bool eliminarHash(string idEliminar) {
+        int indice = funcionHash(idEliminar);
+        NodoHash* actual = tabla[indice];
+        NodoHash* anterior = nullptr;
+
+        while (actual != nullptr) {
+            if (actual->pedido->idPedido == idEliminar) {
+                if (anterior == nullptr) {
+                    tabla[indice] = actual->siguiente;
+                } else {
+                    anterior->siguiente = actual->siguiente; 
+                }
+                delete actual; 
+                cantidadElementos--;
+                return true;
+            }
+            anterior = actual;
+            actual = actual->siguiente;
+        }
+        return false;
+    }
+
+    void liberarPedidos() {
+        for (int i = 0; i < numBuckets; i++) {
+            NodoHash* actual = tabla[i];
+            while (actual != nullptr) {
+                delete actual->pedido;
+                actual->pedido = nullptr;
+                actual = actual->siguiente;
+            }
+        }
+    }
+
+    void mostrarEstadisticas() {
+        int bucketsUsados = 0;
+        int colisiones = 0;
+        for (int i = 0; i < numBuckets; i++) {
+            if (tabla[i] != nullptr) {
+                bucketsUsados++;
+                int count = 0;
+                NodoHash* aux = tabla[i];
+                while (aux != nullptr) {
+                    count++;
+                    aux = aux->siguiente;
+                }
+                if (count > 1) colisiones += (count - 1);
+            }
+        }
+        cout << "Total elementos en Hash: " << cantidadElementos << endl;
+        cout << "Buckets utilizados: " << bucketsUsados << " / " << numBuckets << endl;
+        cout << "Colisiones resueltas por encadenamiento: " << colisiones << endl;
+    }
+
+    ~TablaHash() {
+        for(int i = 0; i < numBuckets; i++) {
+            NodoHash* actual = tabla[i];
+            while(actual != nullptr) {
+                NodoHash* temp = actual;
+                actual = actual->siguiente;
+                delete temp;
+            }
+        }
+        delete[] tabla;
+    }
 };
 
 
@@ -155,6 +263,81 @@ private:
         return nodo;
     }
 
+    NodoAVL* eliminarAVL(NodoAVL* nodo,
+                         string fecha,
+                         string hora,
+                         string idPedido) {
+        if (nodo == nullptr) {
+            return nullptr;
+        }
+
+        if (fecha < nodo->pedido->fecha ||
+            (fecha == nodo->pedido->fecha &&
+             hora < nodo->pedido->hora) ||
+            (fecha == nodo->pedido->fecha &&
+             hora == nodo->pedido->hora &&
+             idPedido < nodo->pedido->idPedido)) {
+            nodo->izq = eliminarAVL(nodo->izq, fecha, hora, idPedido);
+        }
+        else if (fecha > nodo->pedido->fecha ||
+                 (fecha == nodo->pedido->fecha &&
+                  hora > nodo->pedido->hora) ||
+                 (fecha == nodo->pedido->fecha &&
+                  hora == nodo->pedido->hora &&
+                  idPedido > nodo->pedido->idPedido)) {
+            nodo->der = eliminarAVL(nodo->der, fecha, hora, idPedido);
+        }
+        else {
+            if (nodo->izq == nullptr || nodo->der == nullptr) {
+                NodoAVL* hijo = nodo->izq != nullptr ? nodo->izq : nodo->der;
+                delete nodo->pedido;
+                delete nodo;
+                return hijo;
+            }
+
+            NodoAVL* sucesor = nodo->der;
+            while (sucesor->izq != nullptr) {
+                sucesor = sucesor->izq;
+            }
+
+            Pedido* pedidoOriginal = nodo->pedido;
+            nodo->pedido = sucesor->pedido;
+            sucesor->pedido = pedidoOriginal;
+
+            nodo->der = eliminarAVL(
+                nodo->der,
+                pedidoOriginal->fecha,
+                pedidoOriginal->hora,
+                pedidoOriginal->idPedido
+            );
+        }
+
+        nodo->altura = 1 + mayor(obtenerAltura(nodo->izq),
+                                 obtenerAltura(nodo->der));
+
+        int balance = obtenerBalance(nodo);
+
+        if (balance > 1 && obtenerBalance(nodo->izq) >= 0) {
+            return rotarDerecha(nodo);
+        }
+
+        if (balance > 1 && obtenerBalance(nodo->izq) < 0) {
+            nodo->izq = rotarIzquierda(nodo->izq);
+            return rotarDerecha(nodo);
+        }
+
+        if (balance < -1 && obtenerBalance(nodo->der) <= 0) {
+            return rotarIzquierda(nodo);
+        }
+
+        if (balance < -1 && obtenerBalance(nodo->der) > 0) {
+            nodo->der = rotarDerecha(nodo->der);
+            return rotarIzquierda(nodo);
+        }
+
+        return nodo;
+    }
+
     void vaciarArbol(NodoAVL* nodo) {
         if (nodo == nullptr) {
             return;
@@ -203,6 +386,10 @@ public:
 
     void insertar(Pedido* pedidoNuevo) {
         raiz = insertarAVL(raiz, pedidoNuevo);
+    }
+
+    void eliminar(string fecha, string hora, string idPedido) {
+        raiz = eliminarAVL(raiz, fecha, hora, idPedido);
     }
     
     void imprimirPrimeros30() {
@@ -274,7 +461,7 @@ private:
 
 public:
     SistemaLogistica(int capHash) {
-        // KHash = new TablaHash(capHash);
+        KHash = new TablaHash(capHash);
 
         DArbol = new ArbolAVL();
 
@@ -283,21 +470,50 @@ public:
 
     void registrarPedido(string id, string dni, string tipo, int prio,
                          double monto, string f, string h, string est) {
+        if (KHash->buscarHash(id) != nullptr) {
+            return;
+        }
+
         Pedido* nuevoPedido = new Pedido(
             id, dni, tipo, prio, monto, f, h, est
         );
 
-        // KHash->insertarHash(nuevoPedido);
+        KHash->insertarHash(nuevoPedido);
 
         DArbol->insertar(nuevoPedido);
 
         // Heap->insertarHeap(nuevoPedido);
     }
 
-    ~SistemaLogistica() {
-        // delete KHash;
+    Pedido* buscarPedidoPorID(string id){
+        return KHash->buscarHash(id);
+    }
 
+    bool actualizarEstadoPedido(string id, string nuevoEstado) {
+        Pedido* p = KHash->buscarHash(id);
+        if (p != nullptr) {
+            p->estado = nuevoEstado;
+            return true;
+        }
+        return false;
+    }
+
+    bool eliminarPedido(string id) {
+        Pedido* p = KHash->buscarHash(id);
+        if (p == nullptr) return false;
+
+        KHash->eliminarHash(id);
+        DArbol->eliminar(p->fecha, p->hora, p->idPedido);
+        return true;
+    }
+
+    void verMetricasHash() {
+        KHash->mostrarEstadisticas();
+    }
+    
+    ~SistemaLogistica() {
         delete DArbol;
+        delete KHash;
 
         // delete Heap;
     }
@@ -311,15 +527,12 @@ void mostrarPedidosOrdenados() {
 };
 
 // CARGA DE ARCHIVOS CSV 
-void cargarCSV(string pedidos_masivos_G3, SistemaLogistica& sistema){
-// void cargarCSV(string pedidos_pequenos_G3, SistemaLogistica& sistema){
-    ifstream archivo(pedidos_masivos_G3);
-    // ifstream archivo(pedidos_pequenos_G3);
+void cargarCSV(string nombreArchivo, SistemaLogistica& sistema){
+    ifstream archivo(nombreArchivo);
     string linea;
 
     if (!archivo.is_open()) {
-        cout << "Error: No se pudo abrir el archivo " << pedidos_masivos_G3 << endl;
-        // cout << "Error: No se pudo abrir el archivo " << pedidos_pequenos_G3 << endl;
+        cout << "Error: No se pudo abrir el archivo " << nombreArchivo << endl;
         return;
     }
 
@@ -343,8 +556,7 @@ void cargarCSV(string pedidos_masivos_G3, SistemaLogistica& sistema){
         }
     }
     archivo.close();
-    cout << "Carga masiva completada exitosamente desde: " << pedidos_masivos_G3 << endl;
-    // cout << "Carga pequena completada exitosamente desde: " << pedidos_pequenos_G3 << endl;
+    cout << "Carga completada exitosamente desde: " << nombreArchivo << endl;
 }
 
 int main() {
@@ -370,24 +582,48 @@ int main() {
         archivoCSV = "PedidosCSV/pedidos_masivos_G3.csv";
     }
 
+    auto inicioCarga = chrono::high_resolution_clock::now();
     cargarCSV(archivoCSV, sistema);
+    auto finCarga = chrono::high_resolution_clock::now();
+    double msCarga = chrono::duration<double, milli>(
+        finCarga - inicioCarga
+    ).count();
+
+    cout << "Tiempo de carga: " << msCarga << " ms" << endl;
 
     int opcion;
 
     while (true) {
         cout << "\n========== MENU PRINCIPAL ==========\n";
-        cout << "1. Busqueda por ID (Hash - Pendiente Integrante 1)\n";
+        cout << "1. Busqueda por ID (Hash)\n";
         cout << "2. Despacho de Pedidos Urgentes (Heap - Pendiente Integrante 2)\n";
         cout << "3. Consulta ordenada por fecha y hora (In-Order AVL)\n";
         cout << "4. Consulta por rango de fechas (Arbol AVL)\n";
-        cout << "5. Salir\n";
+        cout << "5. Ver metricas del Hash\n";
+        cout << "6. Salir\n";
         cout << "Seleccione una opcion: ";
         cin >> opcion;
 
         switch (opcion) {
         case 1:
-            cout << "Busqueda por ID pendiente de implementacion.\n";
+        {
+            string id;
+            cout << "Ingrese el ID del pedido: ";
+            cin >> id;
+
+            Pedido* pedido = sistema.buscarPedidoPorID(id);
+            if (pedido == nullptr) {
+                cout << "Pedido no encontrado.\n";
+            }
+            else {
+                cout << "ID: " << pedido->idPedido
+                     << " | Fecha: " << pedido->fecha
+                     << " | Hora: " << pedido->hora
+                     << " | Estado: " << pedido->estado
+                     << endl;
+            }
             break;
+        }
 
         case 2:
             cout << "Despacho de pedidos urgentes pendiente de implementacion.\n";
@@ -412,6 +648,10 @@ int main() {
         }
 
         case 5:
+            sistema.verMetricasHash();
+            break;
+
+        case 6:
             cout << "Saliendo del programa...\n";
             return 0;
 
