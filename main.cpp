@@ -795,6 +795,10 @@ int main() {
             }
             else {
                 cout << "ID: " << pedido->idPedido
+                     << " | DNI: " << pedido->dniCliente
+                     << " | Tipo de envio: " << pedido->tipoEnvio
+                     << " | Nivel de prioridad: " << pedido->nivelPrioridad
+                     << " | Monto en $: " << pedido->montoDolares
                      << " | Fecha: " << pedido->fecha
                      << " | Hora: " << pedido->hora
                      << " | Estado: " << pedido->estado
@@ -980,6 +984,7 @@ int main() {
 
         case 8:
             sistema.mostrarEstadisticasO1();
+            sistema.verMetricasHash();
             break;
 
         case 9:
